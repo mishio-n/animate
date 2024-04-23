@@ -1,0 +1,45 @@
+on:
+  push:
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [20]
+    steps:
+    - uses: actions/checkout@v3
+    - uses: pnpm/action-setup@v3
+      with:
+        version: 9
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v3
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'pnpm'
+    - name: Install dependencies
+      run: pnpm install
+  
+  build:
+    needs: install
+    runs-on: ubuntu-latest
+    steps:
+      - name: build packages
+        run: cd packages/animations && pnpm build
+      - name: build docs
+        run: cd ../../docs && pnpm build
+      - name: Archive production artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: artifacts
+          path: docs/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v1
